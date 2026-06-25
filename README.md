@@ -1,102 +1,34 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# OnePali 🕊️
+OnePali is a beautifully crafted mobile application designed to seamlessly facilitate donations, build community identity, and track philanthropic impact. Built with an emphasis on premium user experience, the app features highly interactive micro-animations, real-time number reservation logic, and a gamified badge system to keep supporters engaged.
 
-# Getting Started
+### 📱 Download the App
+- [**iOS App Store**](https://apps.apple.com/in/app/onepali-%241-for-palestine/id6758080916)
+- [**Google Play Store**](https://play.google.com/store/apps/details?id=com.onepali&pcampaignid=web_share)
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 🚀 Tech Stack
+- **Core Framework:** React Native (v0.83.1) with TypeScript for type-safe, cross-platform mobile development.
+- **State Management:** Redux Toolkit (`@reduxjs/toolkit`) for predictable, centralized application state.
+- **Routing:** React Navigation v7 (`@react-navigation/native`, `native-stack`, `bottom-tabs`).
+- **Backend & Cloud Services:** Firebase (Auth, App, Analytics, Messaging) and Axios for robust API communication.
+- **Payments & Subscriptions:** Stripe React Native (`@stripe/stripe-react-native`) and React Native IAP (`react-native-iap`) for handling global donations.
+- **Animations & UI Engine:** React Native Reanimated (v3), Lottie React Native, and Animated API for highly fluid 60FPS UI interactions.
+- **Analytics & Marketing:** Klaviyo SDK and Firebase Analytics for detailed user journey tracking.
 
-## Step 1: Start Metro
+## ⭐ Spotlight Feature: The "Slot Machine" Number Reveal & Reservation Engine
+One of the most technically demanding aspects of the app is the **Identity Number Reservation System**, specifically the `SlotMachineNumber` and `ClaimSpot` components. This feature allows users to claim a unique, randomized "Supporter Number" between 1 and 1,000,000, complete with a highly polished slot-machine reveal effect.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+### Why it was technically challenging:
+- **Complex Animation Orchestration:** The `SlotMachineNumber` component required sequencing multiple independent animations simultaneously. It uses staggered `setInterval` timers (spinning at ~50ms intervals) paired with React Native's `Animated` API to independently lock each digit of a 6-digit string from left to right.
+- **Haptic Feedback Synchronization:** To make the interaction feel tactile and premium, `react-native-haptic-feedback` is synchronized down to the millisecond with the animation loops. The app triggers a *Light* impact when scrambling starts, a *Medium* impact as individual digits lock, and a *Heavy* impact when the final digit settles.
+- **Dynamic Masking & Layout Shifts:** The logic involves dynamic string manipulation to automatically hide leading zeros (e.g., displaying `#123` instead of `#000123`). This required calculating precise bounding boxes and interpolating color opacities concurrently without dropping frames.
+- **Concurrency & State Control:** On the backend/API side (`ClaimSpot`), the app handles debounced API polling to verify number availability in real-time. If a number is generated (via a shake-dice animation), a server-validated reservation token and an active expiry countdown timer are initialized using Redux, preventing race conditions if multiple users attempt to claim the same spot.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## 🛠 Key Features
+- **Gamified Badge System:** A robust achievement engine (Growth, Community, and Impact badges) with locked/unlocked states and interactive modal breakdowns to encourage continuous support.
+- **Stripe Donation Flow:** Secure, seamless integration with Stripe for processing recurring and one-time global donations.
+- **Progress Tracking & Analytics:** Real-time dashboards visualizing both personal milestones and a global $1M community goal.
+- **Push Notifications & Event Tracking:** Fully integrated Klaviyo and Firebase event tracking to trigger personalized notifications based on app usage and subscription milestones.
+- **Dynamic Deep Linking & App Review:** Built-in routing for native App Store / Play Store reviews (`react-native-in-app-review`) triggered programmatically after meaningful user interactions.
 
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-```sh
-# OR using Yarn
-npx react-native build-android --mode=release
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## 💡 Why This Project Stands Out
+OnePali proves my ability to go beyond basic CRUD applications and deliver a consumer-grade product that feels alive. By heavily utilizing the `Animated` API alongside synchronized haptics, I engineered a tactile user interface that feels premium and responsive. Furthermore, architecting a real-time reservation system with token expiration demonstrates my capability to handle complex asynchronous state management, debounced network requests, and edge-case error handling. This application is a testament to my focus on high-performance mobile engineering and pixel-perfect UI execution.
