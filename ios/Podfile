@@ -1,0 +1,56 @@
+# React Native 0.83+ uses require_relative for Pod helper scripts
+require_relative "../node_modules/react-native/scripts/react_native_pods"
+require_relative "../node_modules/react-native-permissions/scripts/setup"
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+setup_permissions([
+  'Camera',
+  'PhotoLibrary',
+  'PhotoLibraryAddOnly',
+  'AppTrackingTransparency'
+])
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'OnePali' do
+  config = use_native_modules!
+
+  use_frameworks! :linkage => :static
+  $RNFirebaseAsStaticFramework = true
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false
+    )
+
+    # 🔥 REQUIRED for macOS 26 + Xcode 16 + Hermes
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+        config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+        config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+      end
+    end
+
+    installer.aggregate_targets.each do |target|
+      target.user_project.native_targets.each do |nt|
+        nt.build_configurations.each do |config|
+          config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+        end
+      end
+    end
+  end
+end

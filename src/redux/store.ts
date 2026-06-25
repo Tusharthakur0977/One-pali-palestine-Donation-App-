@@ -1,0 +1,104 @@
+import { configureStore, createListenerMiddleware } from "@reduxjs/toolkit";
+import { useDispatch, useSelector } from "react-redux";
+import { AppState } from "react-native";
+import BadgesReducer from "./slices/BadgesSlice";
+import CollectBadgesReducer from "./slices/CollectBadgesSlice";
+import userReducer, {
+  startReservationTimer,
+  recalculateReservationTimer,
+  decrementReservationTimer,
+  clearReservationToken,
+} from "./slices/UserSlice";
+import StripePlansReducer from "./slices/StripePlans";
+import ArtsReducer from "./slices/ArtsSlice";
+import UpdatesReducer from "./slices/UpdatesSlice";
+import ReceiptsReducer from "./slices/ReceiptsSlice";
+import DetailsReducer from "./slices/DetailsSlice";
+import remainingSpotsReducer from "./slices/remainingSpotsSlice";
+import subscriptionReducer from "./slices/SubscriptionSlice";
+import stripeBootstrapReducer from "./slices/StripeBootstrapSlice";
+
+// Create listener middleware for timer countdown
+const timerListenerMiddleware = createListenerMiddleware();
+
+let timerInterval: any = null;
+let appStateSubscription: any = null;
+
+timerListenerMiddleware.startListening({
+  actionCreator: startReservationTimer,
+  effect: (action, api) => {
+    // Clear any existing interval
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+
+    // Start new countdown interval
+    timerInterval = setInterval(() => {
+      const state = api.getState() as ReturnType<typeof store.getState>;
+      const currentSeconds = state.user.reservationSeconds;
+
+      // Only dispatch if timer is still active
+      if (currentSeconds !== null && currentSeconds > 0) {
+        api.dispatch(decrementReservationTimer());
+      } else {
+        // Stop interval when expired
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+    }, 1000);
+
+    // Set up app state listener to recalculate timer when app comes back to foreground
+    if (!appStateSubscription) {
+      appStateSubscription = AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+          // App has come back to foreground, recalculate timer based on expiration time
+          api.dispatch(recalculateReservationTimer());
+        }
+      });
+    }
+  },
+});
+
+// Listen for reservation expiration and clear the reservation token
+timerListenerMiddleware.startListening({
+  actionCreator: decrementReservationTimer,
+  effect: (action, api) => {
+    const state = api.getState() as ReturnType<typeof store.getState>;
+
+    // Check if reservation has just expired
+    if (
+      state.user.reservationSeconds === 0 &&
+      state.user.reservationToken !== null
+    ) {
+      api.dispatch(clearReservationToken());
+    }
+  },
+});
+
+export const store = configureStore({
+  reducer: {
+    collectBadges: CollectBadgesReducer,
+    user: userReducer,
+    badges: BadgesReducer,
+    stripePlans: StripePlansReducer,
+    arts: ArtsReducer,
+    updates: UpdatesReducer,
+    receipts: ReceiptsReducer,
+    details: DetailsReducer,
+    remainingSpots: remainingSpotsReducer,
+    subscription: subscriptionReducer,
+    stripeBootstrap: stripeBootstrapReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().prepend(timerListenerMiddleware.middleware),
+});
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>;
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+export type AppDispatch = typeof store.dispatch;
+
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
+export const useAppSelector = useSelector.withTypes<RootState>();

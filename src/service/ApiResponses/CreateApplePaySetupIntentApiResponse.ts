@@ -1,0 +1,9 @@
+export interface CreateApplePaySetupIntentApiResponse {
+  clientSecret: string;
+  paymentIntentId: string;
+  amount: number;
+  currency: string;
+  priceId: string;
+  timerExtended?: boolean;
+  newExpirationTime?: string;
+}

@@ -1,0 +1,41 @@
+import { Platform, StyleSheet } from "react-native";
+import COLORS from "../../utils/Colors";
+import { horizontalScale, verticalScale, wp } from "../../utils/Metrics";
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: COLORS.appBackground,
+  },
+  safeArea: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(20),
+    marginTop: verticalScale(15),
+  },
+
+  header: {
+    width: wp(90),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    width: horizontalScale(54),
+    height: verticalScale(54),
+    resizeMode: "contain",
+  },
+
+  headingContainer: {
+    marginTop: verticalScale(32),
+    alignItems: "center",
+  },
+  googleSignin: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.borderColor,
+  },
+});
+
+export default styles;

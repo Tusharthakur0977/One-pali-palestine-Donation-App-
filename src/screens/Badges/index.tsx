@@ -1,0 +1,501 @@
+import React, { FC, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ICONS from '../../assets/Icons';
+import IMAGES from '../../assets/Images';
+import BadgeIcon from '../../components/BadgeIcon';
+import CustomIcon from '../../components/CustomIcon';
+import { CustomText } from '../../components/CustomText';
+import FocusResetScrollView from '../../components/FocusResetScrollView';
+import BadgesDetail from '../../components/Modal/BadgesDetail';
+import { setBadgeData } from '../../redux/slices/BadgesSlice';
+import { useAppDispatch, useAppSelector } from '../../redux/store';
+import ENDPOINTS from '../../service/ApiEndpoints';
+import {
+  Badge,
+  GetAllBadgesResponse,
+} from '../../service/ApiResponses/GetAllBadges';
+import { fetchData } from '../../service/ApiService';
+import { BadgesScreenProps } from '../../typings/routes';
+import COLORS from '../../utils/Colors';
+import { horizontalScale, verticalScale, wp } from '../../utils/Metrics';
+
+type TabType = 'Growth' | 'Community' | 'Impact';
+
+const TAB_CATEGORY_MAP: Record<TabType, string> = {
+  Growth: 'GROWTH',
+  Community: 'COMMUNITY',
+  Impact: 'IMPACT',
+};
+
+const TABS: TabType[] = ['Growth', 'Community', 'Impact'];
+
+const getTabFromCategory = (category?: string): TabType => {
+  if (!category) return 'Growth';
+  const upper = category.toUpperCase();
+  const mappedTab = (Object.keys(TAB_CATEGORY_MAP) as TabType[]).find(
+    (tab) => TAB_CATEGORY_MAP[tab] === upper,
+  );
+  return mappedTab ?? 'Growth';
+};
+
+const Badges: FC<BadgesScreenProps> = ({ navigation, route }) => {
+  const { badgeCategory } = route.params || {};
+
+  const dispatch = useAppDispatch();
+  const { badges } = useAppSelector((state) => state.badges);
+  const userBadges = useAppSelector((state) => state.user.badges?.badges ?? []);
+
+  const initialTab = getTabFromCategory(badgeCategory);
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const [isBadgeModalVisible, setIsBadgeModalVisible] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [isTabScrollEnabled, setIsTabScrollEnabled] = useState(true);
+  const flatListRef = useRef<FlatList>(null);
+  const lastIndexRef = useRef(0);
+  const underlineX = useRef(new Animated.Value(0)).current;
+
+  const moveUnderline = (index: number) => {
+    const tabWidth = wp(85) / TABS.length;
+
+    Animated.timing(underlineX, {
+      toValue: index * tabWidth,
+      duration: 250,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const getBadgesByTab = (tab: TabType) =>
+    badges.filter((b) => b.category === TAB_CATEGORY_MAP[tab].toUpperCase());
+
+  // Helper to determine if a badge is unlocked
+  const isBadgeUnlocked = (badgeId: string): boolean => {
+    // Check if badge exists in user's earned badges
+    const isEarned = userBadges.some((ub) => ub.badge.id === badgeId);
+    return isEarned;
+  };
+
+  const latestIdentityBadge = badges.filter(
+    (b) => b.category === 'IDENTITY',
+  )?.[0];
+
+  const handleScroll = (e: any) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / wp(100));
+
+    if (index !== lastIndexRef.current) {
+      lastIndexRef.current = index;
+      const tab = TABS[index];
+      if (tab) setActiveTab(tab);
+
+      moveUnderline(index);
+    }
+  };
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (badges.length === 0) return;
+    const tab = getTabFromCategory(badgeCategory);
+    const index = TABS.indexOf(tab);
+    if (index === -1) return;
+    setActiveTab(tab);
+    moveUnderline(index);
+
+    const scrollToTab = () => {
+      flatListRef.current?.scrollToIndex({ index, animated: true });
+    };
+
+    if (flatListRef.current) {
+      scrollToTab();
+      return;
+    }
+
+    const timeout = setTimeout(scrollToTab, 150);
+    return () => clearTimeout(timeout);
+  }, [badgeCategory, badges.length]);
+
+  const fetchAllBadges = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchData<GetAllBadgesResponse>(ENDPOINTS.GetAllBadges);
+      dispatch(setBadgeData(res?.data?.data?.badges));
+    } catch (error) {
+      console.log('error', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (badges.length === 0) {
+      fetchAllBadges();
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator
+          size='large'
+          color={COLORS.darkText}
+        />
+      </View>
+    );
+  }
+  return (
+    <View style={styles.container}>
+      <SafeAreaView
+        style={styles.safeArea}
+        edges={['top', 'bottom']}
+      >
+        <FocusResetScrollView
+          keyboardShouldPersistTaps='always'
+          horizontal={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          style={{ width: '100%' }}
+          contentContainerStyle={{
+            alignItems: 'center',
+          }}
+        >
+          <View style={styles.header}>
+            <View style={styles.side}>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.canGoBack()
+                    ? navigation.goBack()
+                    : navigation.replace('tabs', { screen: 'home' })
+                }
+                style={{ padding: horizontalScale(8), marginLeft: 10 }}
+                activeOpacity={0.8}
+              >
+                <CustomIcon
+                  Icon={ICONS.backArrow}
+                  height={verticalScale(26)}
+                  width={verticalScale(26)}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.center}>
+              <Image
+                source={IMAGES.OnePaliLogo}
+                style={styles.logo}
+              />
+            </View>
+
+            <View style={styles.side} />
+          </View>
+
+          <View style={{ marginTop: verticalScale(30) }}>
+            <CustomText
+              fontFamily='GabaritoSemiBold'
+              fontSize={42}
+              color={COLORS.darkText}
+              style={{ textAlign: 'center' }}
+            >
+              Badges
+            </CustomText>
+            <CustomText
+              fontFamily='GabaritoRegular'
+              fontSize={18}
+              color={COLORS.appText}
+              style={{ textAlign: 'center' }}
+            >
+              {/* Earn badges for your commitment and impact */}
+              Your commitment and milestones
+            </CustomText>
+          </View>
+          <View style={styles.card}>
+            <TouchableOpacity
+              onPressIn={() => setIsTabScrollEnabled(false)}
+              onPressOut={() => setIsTabScrollEnabled(true)}
+              onPress={() => {
+                setSelectedBadge(latestIdentityBadge);
+                setIsBadgeModalVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <BadgeIcon
+                badge={latestIdentityBadge?.name}
+                style={{
+                  width: verticalScale(94),
+                  height: verticalScale(94),
+                }}
+              />
+            </TouchableOpacity>
+            <View style={{ gap: verticalScale(8) }}>
+              <CustomText
+                fontFamily='GabaritoMedium'
+                fontSize={20}
+                color={COLORS.darkText}
+                style={{ textAlign: 'center' }}
+              >
+                {latestIdentityBadge?.name}
+              </CustomText>
+              <CustomText
+                fontFamily='GabaritoRegular'
+                fontSize={15}
+                color={COLORS.appText}
+                style={{ textAlign: 'center' }}
+              >
+                {latestIdentityBadge?.milestone}
+              </CustomText>
+            </View>
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabContainer}>
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab;
+
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  onPress={() => {
+                    const index = TABS.indexOf(tab);
+                    moveUnderline(index);
+
+                    flatListRef.current?.scrollToIndex({
+                      index,
+                      animated: true,
+                    });
+                  }}
+                  activeOpacity={0.8}
+                  style={styles.tabButton}
+                >
+                  <CustomText
+                    fontFamily='GabaritoMedium'
+                    fontSize={16}
+                    color={isActive ? COLORS.darkText : COLORS.grey}
+                  >
+                    {tab}
+                  </CustomText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Animated Underline */}
+          <View style={styles.underlineWrapper}>
+            <Animated.View
+              style={[
+                styles.activeUnderline,
+                {
+                  width: wp(85) / TABS.length,
+                  transform: [{ translateX: underlineX }],
+                },
+              ]}
+            />
+          </View>
+          <FlatList
+            ref={flatListRef}
+            bounces={false}
+            data={TABS}
+            horizontal
+            pagingEnabled
+            decelerationRate='fast'
+            snapToInterval={wp(100)}
+            snapToAlignment='center'
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={isTabScrollEnabled}
+            keyExtractor={(item) => item}
+            onScroll={handleScroll}
+            getItemLayout={(_, index) => ({
+              length: wp(100),
+              offset: wp(100) * index,
+              index,
+            })}
+            onScrollToIndexFailed={({ index, averageItemLength }) => {
+              // fallback: scroll to the end or beginning
+              setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                  index: Math.max(0, Math.min(index, TABS.length - 1)),
+                  animated: true,
+                });
+              }, 100);
+            }}
+            renderItem={({ item: tab }) => {
+              const tabBadges = getBadgesByTab(tab);
+              const rowCount = Math.ceil(tabBadges.length / 3);
+
+              return (
+                <View style={{ width: wp(100), alignItems: 'center' }}>
+                  <FlatList
+                    bounces={false}
+                    data={tabBadges}
+                    keyExtractor={(item) => item?.id}
+                    numColumns={3}
+                    scrollEnabled={false}
+                    contentContainerStyle={{
+                      paddingTop: verticalScale(24),
+                      paddingBottom: verticalScale(40),
+                      width: wp(90),
+                    }}
+                    columnWrapperStyle={{
+                      justifyContent: 'flex-start',
+                      marginBottom: verticalScale(20),
+                      gap: horizontalScale(20),
+                    }}
+                    renderItem={({ item: badge }) => {
+                      const isUnlocked = isBadgeUnlocked(badge?.id);
+
+                      return (
+                        <TouchableOpacity
+                          onPressIn={() => setIsTabScrollEnabled(false)}
+                          onPressOut={() => setIsTabScrollEnabled(true)}
+                          style={{
+                            width: wp(26),
+                            alignItems: 'center',
+                            gap: verticalScale(8),
+                          }}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            setSelectedBadge(badge);
+                            setIsBadgeModalVisible(true);
+                          }}
+                        >
+                          <View
+                            style={{
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: 100,
+                              overflow: 'hidden',
+                              position: 'relative',
+                            }}
+                          >
+                            <BadgeIcon
+                              badge={badge?.name}
+                              locked={!isUnlocked}
+                              style={{
+                                width: verticalScale(94),
+                                height: verticalScale(94),
+                                resizeMode: 'contain',
+                              }}
+                            />
+                          </View>
+
+                          <View style={{ alignItems: 'center' }}>
+                            <CustomText
+                              fontFamily='GabaritoRegular'
+                              fontSize={15}
+                              color={
+                                !isUnlocked
+                                  ? COLORS.lightPurple
+                                  : COLORS.darkText
+                              }
+                              style={{ textAlign: 'center' }}
+                            >
+                              {badge?.title}
+                            </CustomText>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </View>
+              );
+            }}
+          />
+          <BadgesDetail
+            isVisible={isBadgeModalVisible}
+            setIsVisible={setIsBadgeModalVisible}
+            badgeLabel={selectedBadge?.title}
+            badgeMonths={selectedBadge?.milestone}
+            badgeDescription={selectedBadge?.description}
+            isLocked={selectedBadge ? !isBadgeUnlocked(selectedBadge.id) : true}
+          />
+        </FocusResetScrollView>
+      </SafeAreaView>
+    </View>
+  );
+};
+
+export default Badges;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+  },
+  safeArea: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  logo: {
+    width: horizontalScale(54),
+    height: verticalScale(54),
+    resizeMode: 'contain',
+    alignSelf: 'center',
+    marginTop: Platform.OS === 'ios' ? verticalScale(0) : verticalScale(10),
+  },
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+    borderRadius: 20,
+    padding: horizontalScale(12),
+    marginHorizontal: horizontalScale(10),
+    marginTop: verticalScale(24),
+    width: wp(90),
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+    alignItems: 'center',
+    gap: verticalScale(8),
+  },
+  header: {
+    width: '100%',
+    flexDirection: 'row',
+    marginTop: verticalScale(10),
+  },
+  side: {
+    width: horizontalScale(40),
+    alignItems: 'flex-start',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    width: '85%',
+    marginTop: verticalScale(28),
+  },
+  tabButton: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  activeUnderline: {
+    marginTop: verticalScale(8),
+    height: verticalScale(2),
+    backgroundColor: COLORS.darkText,
+    borderRadius: 10,
+  },
+  underlineWrapper: {
+    width: '85%',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderColor: COLORS.appBackground,
+  },
+});
